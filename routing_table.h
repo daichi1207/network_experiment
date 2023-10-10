@@ -10,6 +10,8 @@ typedef struct {
   struct in_addr dest;
 } RouteEntry;
 
+void init_routing_table(void);
+
 struct in_addr get_forwarding_address(const struct in_addr src);
 
 #endif // ROUTING_TABLE_H

@@ -15,6 +15,8 @@ int main(int argc, char *argv[]) {
   struct epoll_event ev;
   struct epoll_event events[MAX_EVENTS];
 
+  init_routing_table();
+
   // Receiving socket
   recv_sock = socket(PF_INET, SOCK_DGRAM, 0);
   memset(&recv_addr, 0, sizeof(recv_addr));
@@ -45,6 +47,7 @@ int main(int argc, char *argv[]) {
       if (events[i].data.fd == recv_sock) {
         int str_len = recvfrom(recv_sock, buf, BUF_SIZE, 0,
                                (struct sockaddr *)&from_addr, &addr_len);
+	printf("received data");
 
         struct in_addr forward_addr =
             get_forwarding_address(from_addr.sin_addr);

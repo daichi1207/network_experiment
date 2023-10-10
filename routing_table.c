@@ -1,13 +1,17 @@
 // routing_table.c
 
+#include <arpa/inet.h>  
 #include "routing_table.h"
 #include <string.h>
 
-static RouteEntry routing_table[] = {
-    {.src = {.s_addr = inet_addr("172.20.0.10")},
-     .dest = {.s_addr = inet_addr("172.21.0.20")}},
-    // add more
-};
+static RouteEntry routing_table[2];
+
+void init_routing_table(void) {
+    routing_table[0].src.s_addr = inet_addr("172.22.0.10");
+    routing_table[0].dest.s_addr = inet_addr("172.27.0.30");
+    routing_table[1].src.s_addr = inet_addr("172.27.0.30");
+    routing_table[1].dest.s_addr = inet_addr("172.22.0.10");
+}
 
 struct in_addr get_forwarding_address(const struct in_addr src) {
   for (int i = 0; i < sizeof(routing_table) / sizeof(RouteEntry); i++) {

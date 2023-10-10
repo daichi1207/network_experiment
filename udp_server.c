@@ -44,9 +44,9 @@ int main(int argc, char **argv) {
   }
 
   /* STEP 2: クライアントからの要求を受け付けるIPアドレスとポートを設定する */
-  memset(&serverAddr, 0, sizeof(serverAddr));   /* ゼロクリア */
-  serverAddr.sin_family = AF_INET;              /* Internetプロトコル */
-  serverAddr.sin_port = htons(UDP_SERVER_PORT); /* 待ち受けるポート */
+  memset(&serverAddr, 0, sizeof(serverAddr)); /* ゼロクリア */
+  serverAddr.sin_family = AF_INET;            /* Internetプロトコル */
+  serverAddr.sin_port = htons(3000);          /* 待ち受けるポート */
   serverAddr.sin_addr.s_addr = htonl(INADDR_ANY); /* どのIPアドレス宛でも */
   /* STEP 3:ソケットとアドレスをbindする */
   if (bind(sock, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {

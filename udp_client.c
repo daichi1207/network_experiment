@@ -9,9 +9,9 @@
 /*                                                                  */
 
 /*-------------------------- <include>  ----------------------------*/
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-#include<sys/time.h>
 
 #include "icslab2_net.h"
 
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
   /* STEP 1: 宛先サーバのIPアドレスとポートを指定する */
   memset(&serverAddr, 0, sizeof(serverAddr)); /* 0クリア */
   serverAddr.sin_family = AF_INET;            /* Internetプロトコル */
-  serverAddr.sin_port = htons(port);          /* サーバの待受ポート */
+  serverAddr.sin_port = htons(3000);          /* サーバの待受ポート */
   /* IPアドレス（文字列）から変換 */
   inet_pton(AF_INET, server_ipaddr_str, &serverAddr.sin_addr.s_addr);
 
@@ -146,9 +146,9 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    if (rev_cnt == 0){
-	    printf("clock start");
-	    clock_gettime(CLOCK_REALTIME, &start);
+    if (rev_cnt == 0) {
+      printf("clock start");
+      clock_gettime(CLOCK_REALTIME, &start);
     }
     /* STEP 6: events[]を順次確認して必要な処理を行う */
     for (i = 0; i < nfds; i++) {
