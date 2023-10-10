@@ -11,6 +11,7 @@
 /*-------------------------- <include>  ----------------------------*/
 #include <time.h>
 #include <unistd.h>
+#include<sys/time.h>
 
 #include "icslab2_net.h"
 
@@ -22,9 +23,8 @@ int main(int argc, char **argv) {
   char *server_ipaddr_str = "127.0.0.1"; /* サーバIPアドレス（文字列） */
   unsigned int port = UDP_SERVER_PORT; /* ポート番号（文字列） */
   char *filename = NULL;
-  int fd = 1; // 標準出力
+  int fd = 1;
 
-  //   int fd = 0;                    /* 標準入力 */
   int sock;                      /* ソケットディスクリプタ */
   struct sockaddr_in serverAddr; /* サーバ＝相手用のアドレス構造体 */
   struct sockaddr_in clientAddr; /* クライアント＝自分用のアドレス構造体 */
@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
   int cnt = 0; /* timeoutのカウンタ用 */
 
   int bflag = 0; /*終了フラグ*/
+  // const char EOF_SIGNAL[] = "END_OF_TRANSMISSION";
 
   /*スループット計測用*/
   unsigned int sec;
@@ -131,18 +132,24 @@ int main(int argc, char **argv) {
     /* nfdsには処理が可能になったイベント数が返される             */
     /* events[]には処理可能なイベントとデスクリプタが登録されている */
     nfds = epoll_wait(epfd, events, NEVENTS, 5000);
+    if (bflag == 1) {
+      printf("done connection\n");
+      break;
+    }
     if (nfds < 0) {
       perror("epoll_wait");
       return 1;
     }
-
     /* timeout */
     if (nfds == 0) {
       printf("timeout %d\n", cnt++);
       continue;
     }
 
-    clock_gettime(CLOCK_REALTIME, &start);
+    if (rev_cnt == 0){
+	    printf("clock start");
+	    clock_gettime(CLOCK_REALTIME, &start);
+    }
     /* STEP 6: events[]を順次確認して必要な処理を行う */
     for (i = 0; i < nfds; i++) {
       if (events[i].data.fd == sock) {
@@ -152,7 +159,6 @@ int main(int argc, char **argv) {
         addrLen = sizeof(clientAddr);
         n = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
                      (socklen_t *)&addrLen);
-
         if (n < 0) {
           perror("recvfrom");
         }
@@ -175,11 +181,11 @@ int main(int argc, char **argv) {
   sec = end.tv_sec - start.tv_sec;
   nsec = end.tv_nsec - start.tv_nsec;
   time = (double)sec + (double)nsec * 1e-9;
+  printf("time; %lf\n", time);
   printf("total time is %lf ms\n", time * 1e3);
   // printf("throughput is %lf Mbps\n", (double)rev_cnt*BUF_LEN*8/time/1e6);
   printf("throughput is %lf Mbps\n", 8 / time);
 
-  /* STEP 5: ソケットのクローズ */
   close(sock);
 
   return 0;
