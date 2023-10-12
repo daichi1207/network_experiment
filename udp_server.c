@@ -68,6 +68,13 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  // FILE *file = fopen(filename, "rb");
+  // if (file == NULL) {
+  //   perror("open file");
+  //   close(sock);
+  //   return 1;
+  // }
+
   for (;;) { /* 無限ループ */
     /* STEP 4: クライアントからのデータグラムを受けとる */
     printf("waiting connection...\n");
@@ -92,7 +99,7 @@ int main(int argc, char **argv) {
     }
     /* STEP 5: 受信データをクライアントに送り返す */
 
-    nfds = epoll_wait(epfd, events, MAX_EVENTS, 3000);
+    nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
     if (nfds < 0) {
       perror("epoll_wait");
       return 1;
