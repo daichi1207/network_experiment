@@ -21,11 +21,11 @@
 
 int main(int argc, char **argv) {
   char *server_ipaddr_str = "127.0.0.1"; /* サーバIPアドレス（文字列） */
-  unsigned int port = 3000; /* ポート番号（文字列） */
+  unsigned int port = 3000;              /* ポート番号（文字列） */
   char *filename = NULL;
   int fd = 1;
 
-  int sock1, sock2;                      /* ソケットディスクリプタ */
+  int sock;                      /* ソケットディスクリプタ */
   struct sockaddr_in serverAddr; /* サーバ＝相手用のアドレス構造体 */
   struct sockaddr_in clientAddr; /* クライアント＝自分用のアドレス構造体 */
   int addrLen;                   /* serverAddrのサイズ */
@@ -41,7 +41,8 @@ int main(int argc, char **argv) {
 
   int cnt = 0; /* timeoutのカウンタ用 */
 
-  int bflag = 0; /*終了フラグ*/
+  int sock_begin_flag = 0; // sock通信の開始フラグ
+  int bflag = 0;           /*終了フラグ*/
   // const char EOF_SIGNAL[] = "END_OF_TRANSMISSION";
 
   /*スループット計測用*/
@@ -75,6 +76,7 @@ int main(int argc, char **argv) {
   serverAddr.sin_family = AF_INET;            /* Internetプロトコル */
   serverAddr.sin_port = htons(3000);          /* サーバの待受ポート */
   serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
   /* IPアドレス（文字列）から変換 */
   inet_pton(AF_INET, server_ipaddr_str, &serverAddr.sin_addr.s_addr);
 
@@ -84,20 +86,22 @@ int main(int argc, char **argv) {
   printf("port#: %d\n", ntohs(serverAddr.sin_port));
 
   /* STEP 2: UDPソケットをオープンする */
-  sock1 = socket(AF_INET, SOCK_DGRAM, 0);
-  if (sock1 < 0) {
+  sock = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock < 0) {
     perror("socket");
     return 1;
   }
-  ///書き加えたよ
-  sock2 = socket(AF_INET, SOCK_DGRAM, 0);
-  if (sock2 < 0) {
-    perror("socket");
-    return 1;
-  }
-  ///
 
-  /* ここで、ローカルでsocketをbind()してもよいが省略する */
+  /* クライアントからの要求を受け付けるIPアドレスとポートを設定する */
+  memset(&clientAddr, 0, sizeof(clientAddr)); /* ゼロクリア */
+  clientAddr.sin_family = AF_INET;            /* Internetプロトコル */
+  clientAddr.sin_port = htons(3000);          /* 待ち受けるポート */
+  clientAddr.sin_addr.s_addr = htonl(INADDR_ANY); /* どのIPアドレス宛でも */
+  /* STEP 3:ソケットとアドレスをbindする */
+  if (bind(sock, (struct sockaddr *)&clientAddr, sizeof(clientAddr)) < 0) {
+    perror("bind");
+    return 1;
+  }
 
   /* 多重化の準備 */
   /* STEP 3: epollインスタンスの作成 */
@@ -111,41 +115,26 @@ int main(int argc, char **argv) {
   /* sockを登録 */
   memset(&ev, 0, sizeof(ev));
   ev.events = EPOLLIN;
-  ev.data.fd = sock1;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sock1, &ev) != 0) {
-    perror("epoll_ctl 2");
+  ev.data.fd = sock;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sock, &ev) != 0) {
+    perror("epoll_ctl 1");
     return 1;
   }
-  ///書き加えたよ
-  memset(&ev, 0, sizeof(ev));
-  ev.events = EPOLLIN;
-  ev.data.fd = sock2;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sock2, &ev) != 0) {
-    perror("epoll_ctl 2");
-    return 1;
-  }
-  ///
 
   /*ダミーのファイル要求メッセージ*/
   //   sprintf(buf, "GET %s\r\n", dummy_file);
   sprintf(buf, "GET %s\r\n", "dummy1");
-  sendto(sock1, buf, strlen(buf), 0, (struct sockaddr *)&serverAddr,
+  sendto(sock, buf, strlen(buf), 0, (struct sockaddr *)&serverAddr,
          sizeof(serverAddr));
-  printf("Send %d bytes data: %s", strlen(buf), buf);
+  printf("Send %ld bytes data: %s", strlen(buf), buf);
 
-  ///書き加えたよ
-  sprintf(buf, "GET %s\r\n", "dummy2");
-  sendto(sock2, buf, strlen(buf), 0, (struct sockaddr *)&serverAddr,
-         sizeof(serverAddr));
-  printf("Send %d bytes data: %s", strlen(buf), buf);
-  ///
-
-  for (;;) {
+  while (1) {
     /* STEP 5: イベント発生をを待つ */
     /* 最後の引数はtimeout (msec単位), -1はtimeoutなし = ブロック */
     /* nfdsには処理が可能になったイベント数が返される             */
     /* events[]には処理可能なイベントとデスクリプタが登録されている */
-    nfds = epoll_wait(epfd, events, NEVENTS, 5000);
+    nfds = epoll_wait(epfd, events, NEVENTS, 100);
+
     if (bflag == 1) {
       printf("done connection\n");
       break;
@@ -156,57 +145,41 @@ int main(int argc, char **argv) {
     }
     /* timeout */
     if (nfds == 0) {
-      printf("timeout %d\n", cnt++);
-      continue;
-    }
-
-    if (rev_cnt == 0) {
-      printf("clock start");
-      clock_gettime(CLOCK_REALTIME, &start);
-    }
-    /* STEP 6: events[]を順次確認して必要な処理を行う */
-    for (i = 0; i < nfds; i++) {
-      if (events[i].data.fd == sock1) {
-        /* STEP 8: sock1に関するイベントなら */
-
-        /* サーバからデータグラムを受けとる */
-        addrLen = sizeof(clientAddr);
-        n = recvfrom(sock1, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
-                     (socklen_t *)&addrLen);
-	      printf("data received\n");
-        if (n < 0) {
-          perror("recvfrom");
-        }
-        if (n == 0) {
-          bflag = 1;
-        }
-        write(fd, buf, n);
-        rev_cnt++;
+      if (sock_begin_flag == 1) {
+        bflag = 1;
+        sock_begin_flag = 0;
+      } else {
+        printf("timeout %d\n", cnt++);
+        continue;
       }
-
-      ///書き加えたよ
-      if (events[i].data.fd == sock2) {
-        /* STEP 8: sock2に関するイベントなら */
-
-        /* サーバからデータグラムを受けとる */
-        addrLen = sizeof(clientAddr);
-        n = recvfrom(sock2, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
-                     (socklen_t *)&addrLen);
-	      printf("data received\n");
-        if (n < 0) {
-          perror("recvfrom");
+    } else { // socketのepollが立った場合
+      /* STEP 6: events[]を順次確認して必要な処理を行う */
+      for (i = 0; i < nfds; i++) {
+        if (events[i].data.fd == sock) {
+          /* STEP 8: sockに関するイベントなら */
+          /* サーバからデータグラムを受けとる */
+          sock_begin_flag = 1;
+          if (rev_cnt == 0) {
+            printf("clock start");
+            clock_gettime(CLOCK_REALTIME, &start);
+          }
+          addrLen = sizeof(clientAddr);
+          n = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
+                       (socklen_t *)&addrLen);
+          if (n < 0) {
+            perror("recvfrom");
+          }
+          if (n == 0) {
+            printf("all data have saved\n");
+            bflag = 1; // 最後はn=0じゃないことがある。意味ないかもしれない
+            break;
+          } else {
+            printf("data saving, n=%d\n", n);
+            write(fd, buf, n);
+            rev_cnt++;
+          }
         }
-        if (n == 0) {
-          bflag = 1;
-        }
-        write(fd, buf, n);
-        rev_cnt++;
       }
-      ///
-    }
-    if (bflag == 1) {
-      printf("done connection\n");
-      break;
     }
     /* printf("\n"); */
   }
@@ -221,8 +194,7 @@ int main(int argc, char **argv) {
   // printf("throughput is %lf Mbps\n", (double)rev_cnt*BUF_LEN*8/time/1e6);
   printf("throughput is %lf Mbps\n", 8 / time);
 
-  close(sock1);
-  close(sock2);
+  close(sock);
 
   return 0;
 }
