@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
   char *filename = NULL;
   int fd = 1;
 
-  int sock;                      /* ソケットディスクリプタ */
+  int sock1, sock2;                      /* ソケットディスクリプタ */
   struct sockaddr_in serverAddr; /* サーバ＝相手用のアドレス構造体 */
   struct sockaddr_in clientAddr; /* クライアント＝自分用のアドレス構造体 */
   int addrLen;                   /* serverAddrのサイズ */
@@ -84,11 +84,18 @@ int main(int argc, char **argv) {
   printf("port#: %d\n", ntohs(serverAddr.sin_port));
 
   /* STEP 2: UDPソケットをオープンする */
-  sock = socket(AF_INET, SOCK_DGRAM, 0);
-  if (sock < 0) {
+  sock1 = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock1 < 0) {
     perror("socket");
     return 1;
   }
+  ///書き加えたよ
+  sock2 = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock2 < 0) {
+    perror("socket");
+    return 1;
+  }
+  ///
 
   /* ここで、ローカルでsocketをbind()してもよいが省略する */
 
@@ -104,18 +111,34 @@ int main(int argc, char **argv) {
   /* sockを登録 */
   memset(&ev, 0, sizeof(ev));
   ev.events = EPOLLIN;
-  ev.data.fd = sock;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sock, &ev) != 0) {
+  ev.data.fd = sock1;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sock1, &ev) != 0) {
     perror("epoll_ctl 2");
     return 1;
   }
+  ///書き加えたよ
+  memset(&ev, 0, sizeof(ev));
+  ev.events = EPOLLIN;
+  ev.data.fd = sock2;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sock2, &ev) != 0) {
+    perror("epoll_ctl 2");
+    return 1;
+  }
+  ///
 
   /*ダミーのファイル要求メッセージ*/
   //   sprintf(buf, "GET %s\r\n", dummy_file);
-  sprintf(buf, "GET %s\r\n", "dummy");
-  sendto(sock, buf, strlen(buf), 0, (struct sockaddr *)&serverAddr,
+  sprintf(buf, "GET %s\r\n", "dummy1");
+  sendto(sock1, buf, strlen(buf), 0, (struct sockaddr *)&serverAddr,
          sizeof(serverAddr));
   printf("Send %d bytes data: %s", strlen(buf), buf);
+
+  ///書き加えたよ
+  sprintf(buf, "GET %s\r\n", "dummy2");
+  sendto(sock2, buf, strlen(buf), 0, (struct sockaddr *)&serverAddr,
+         sizeof(serverAddr));
+  printf("Send %d bytes data: %s", strlen(buf), buf);
+  ///
 
   for (;;) {
     /* STEP 5: イベント発生をを待つ */
@@ -143,14 +166,14 @@ int main(int argc, char **argv) {
     }
     /* STEP 6: events[]を順次確認して必要な処理を行う */
     for (i = 0; i < nfds; i++) {
-      if (events[i].data.fd == sock) {
-        /* STEP 8: sockに関するイベントなら */
+      if (events[i].data.fd == sock1) {
+        /* STEP 8: sock1に関するイベントなら */
 
         /* サーバからデータグラムを受けとる */
         addrLen = sizeof(clientAddr);
-        n = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
+        n = recvfrom(sock1, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
                      (socklen_t *)&addrLen);
-	printf("data received\n");
+	      printf("data received\n");
         if (n < 0) {
           perror("recvfrom");
         }
@@ -160,6 +183,26 @@ int main(int argc, char **argv) {
         write(fd, buf, n);
         rev_cnt++;
       }
+
+      ///書き加えたよ
+      if (events[i].data.fd == sock2) {
+        /* STEP 8: sock2に関するイベントなら */
+
+        /* サーバからデータグラムを受けとる */
+        addrLen = sizeof(clientAddr);
+        n = recvfrom(sock2, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
+                     (socklen_t *)&addrLen);
+	      printf("data received\n");
+        if (n < 0) {
+          perror("recvfrom");
+        }
+        if (n == 0) {
+          bflag = 1;
+        }
+        write(fd, buf, n);
+        rev_cnt++;
+      }
+      ///
     }
     if (bflag == 1) {
       printf("done connection\n");
@@ -178,7 +221,8 @@ int main(int argc, char **argv) {
   // printf("throughput is %lf Mbps\n", (double)rev_cnt*BUF_LEN*8/time/1e6);
   printf("throughput is %lf Mbps\n", 8 / time);
 
-  close(sock);
+  close(sock1);
+  close(sock2);
 
   return 0;
 }
