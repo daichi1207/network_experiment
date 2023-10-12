@@ -1,4 +1,4 @@
-# #!/bin/bash
+# #!/bin/sh
 #
 # if [ "$(docker ps | grep "node" | wc -l)" -ne 5 ]; then
 #   echo "make sure all containers are running"
