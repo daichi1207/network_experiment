@@ -1,52 +1,68 @@
-# #!/bin/sh
-#
+#!/bin/bash
+
+ if [ "$(docker ps | grep "node" | wc -l)" -ne 5 ]; then
+   echo "make sure all containers are running"
+   exit 1
+ fi
+
+ NODES=("node1" "node2" "node3" "node4" "node5")
+
+ echo "starting"
+ for SERVER in "${NODES[@]}"; do
+     # Start iperf3 server on the current node
+     SERVER_OUTPUT=$(docker exec $SERVER iperf3 -s --json)
+
+     for CLIENT in "${NODES[@]}"; do
+         if [ "$SERVER" != "$CLIENT" ]; then
+             echo "starting iperf3 client on $CLIENT"
+             docker exec $CLIENT iperf3 -c $SERVER -t 3 -b 60M > /dev/null
+
+ 	    echo "done iperf3"
+ 	    sleep 3
+ 	    echo $SERVER_OUTPUT
+             # BANDWIDTH=$(echo $SERVER_OUTPUT | jq ".end.streams.receiver.bits_per_second")
+             echo "Server-side bandwidth from $CLIENT to $SERVER: $BANDWIDTH bps"
+
+             # # Kill the iperf3 server process
+             # docker exec $SERVER pkill iperf3
+             # sleep 1
+             # # Restart the iperf3 server for the next client
+             # docker exec -d $SERVER iperf3 -s
+         fi
+     done
+     docker exec $SERVER pkill iperf3
+ done
+
+
 # if [ "$(docker ps | grep "node" | wc -l)" -ne 5 ]; then
 #   echo "make sure all containers are running"
 #   exit 1
 # fi
 #
-# docker exec -d node1 iperf3 -s
+# NODES=("node1" "node2" "node3" "node4" "node5")
+# OUTPUT_FILE="./tmp/iperf3_output.json"
 #
-# # Give the server a moment to start
-# sleep 2
+# for SERVER in "${NODES[@]}"; do
+#     # Start iperf3 server on the current node
+#     docker exec -d $SERVER iperf3 -s --json > $OUTPUT_FILE
 #
-# BANDWIDTH=$(docker exec node3 iperf3 -u -c node1 -t 10 -b 30M | grep "receiver" | awk '{print $7, $8}')
+#     for CLIENT in "${NODES[@]}"; do
+#         if [ "$SERVER" != "$CLIENT" ]; then
+#             echo "starting iperf3 client on $CLIENT"
+#             docker exec $CLIENT iperf3 -c $SERVER -t 3 -b 60M > /dev/null
+#             echo "done iperf3"
+#             sleep 3
 #
-# docker exec node1 pkill iperf3
+#             SERVER_OUTPUT=$(docker exec $SERVER cat $OUTPUT_FILE)
+#             echo "$SERVER_OUTPUT"
+#             BANDWIDTH=$(echo $SERVER_OUTPUT | jq ".end.streams[0].receiver.bits_per_second")
+#             echo "Server-side bandwidth from $CLIENT to $SERVER: $BANDWIDTH bps"
 #
-# echo "Bandwidth from node3 to node1: $BANDWIDTH"
+#             # Kill the iperf3 server process
+#             docker exec $SERVER pkill iperf3
+#             sleep 1
+#         fi
+#     done
+#     docker exec $SERVER rm -f $OUTPUT_FILE
+# done
 #
-
-if [ "$(docker ps | grep "node" | wc -l)" -ne 5 ]; then
-  echo "make sure all containers are running"
-  exit 1
-fi
-
-NODES=("node1" "node2" "node3" "node4" "node5")
-
-for SERVER in "${NODES[@]}"; do
-    # Start iperf3 server on the current node
-    docker exec -d $SERVER iperf3 -s
-
-    sleep 2
-    for CLIENT in "${NODES[@]}"; do
-        sleep 1
-        if [ "$SERVER" != "$CLIENT" ]; then
-            echo "starting iperf3 client on $CLIENT"
-            docker exec $CLIENT iperf3 -c $SERVER -t 3 -b 60M > /dev/null
-
-            # Capture server-side bandwidth
-            SERVER_OUTPUT=$(docker exec $SERVER iperf3 -s --json)
-            BANDWIDTH=$(echo $SERVER_OUTPUT | jq '.end.sum_received.bits_per_second')
-            echo "Server-side bandwidth from $CLIENT to $SERVER: $BANDWIDTH bps"
-
-            # Kill the iperf3 server process
-            docker exec $SERVER pkill iperf3
-            sleep 1
-            # Restart the iperf3 server for the next client
-            docker exec -d $SERVER iperf3 -s
-        fi
-    done
-    docker exec $SERVER pkill iperf3
-done
-
