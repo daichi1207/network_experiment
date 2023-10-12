@@ -42,18 +42,18 @@ int main(int argc, char *argv[]) {
     if (nfds == 0) {
       continue;
     }
+    // printf("data received\n");
 
     for (int i = 0; i < nfds; i++) {
       if (events[i].data.fd == recv_sock) {
         int str_len = recvfrom(recv_sock, buf, BUF_SIZE, 0,
                                (struct sockaddr *)&from_addr, &addr_len);
-	printf("received data");
-
         struct in_addr forward_addr =
             get_forwarding_address(from_addr.sin_addr);
         if (forward_addr.s_addr != INADDR_NONE) {
+	  printf("data received\n");
           send_addr.sin_family = AF_INET;
-          send_addr.sin_port = htons(3001);
+          send_addr.sin_port = htons(3000);
           send_addr.sin_addr = forward_addr;
           sendto(recv_sock, buf, str_len, 0, (struct sockaddr *)&send_addr,
                  sizeof(send_addr));

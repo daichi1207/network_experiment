@@ -21,7 +21,7 @@
 
 int main(int argc, char **argv) {
   char *server_ipaddr_str = "127.0.0.1"; /* サーバIPアドレス（文字列） */
-  unsigned int port = UDP_SERVER_PORT; /* ポート番号（文字列） */
+  unsigned int port = 3000; /* ポート番号（文字列） */
   char *filename = NULL;
   int fd = 1;
 
@@ -74,6 +74,7 @@ int main(int argc, char **argv) {
   memset(&serverAddr, 0, sizeof(serverAddr)); /* 0クリア */
   serverAddr.sin_family = AF_INET;            /* Internetプロトコル */
   serverAddr.sin_port = htons(3000);          /* サーバの待受ポート */
+  serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
   /* IPアドレス（文字列）から変換 */
   inet_pton(AF_INET, server_ipaddr_str, &serverAddr.sin_addr.s_addr);
 
@@ -98,16 +99,6 @@ int main(int argc, char **argv) {
     perror("epoll_create");
     return 1;
   }
-
-  /* STEP 4: 監視するfdとイベントを登録 */
-  /* fdを登録 */
-  //   memset(&ev, 0, sizeof(ev));
-  //   ev.events = EPOLLIN;
-  //   ev.data.fd = fd;
-  //   if (epoll_ctl(epfd, EPOLL_CTL_ADD, 0, &ev) != 0) {
-  //     perror("epoll_ctl 1");
-  //     return 1;
-  //   }
 
   /* STEP 4': 監視するfdとイベントを登録 */
   /* sockを登録 */
@@ -159,6 +150,7 @@ int main(int argc, char **argv) {
         addrLen = sizeof(clientAddr);
         n = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
                      (socklen_t *)&addrLen);
+	printf("data received\n");
         if (n < 0) {
           perror("recvfrom");
         }
