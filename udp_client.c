@@ -41,8 +41,8 @@ int main(int argc, char **argv) {
 
   int cnt = 0; /* timeoutのカウンタ用 */
 
-  int sock_begin_flag = 0; // sock通信の開始フラグ
-  int bflag = 0;           /*終了フラグ*/
+  int sock_begin_flag = 0;  // sock通信の開始フラグ
+  int bflag = 0;            /*終了フラグ*/
   // const char EOF_SIGNAL[] = "END_OF_TRANSMISSION";
 
   /*スループット計測用*/
@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
         printf("timeout %d\n", cnt++);
         continue;
       }
-    } else { // socketのepollが立った場合
+    } else {  // socketのepollが立った場合
       /* STEP 6: events[]を順次確認して必要な処理を行う */
       for (i = 0; i < nfds; i++) {
         if (events[i].data.fd == sock) {
@@ -171,10 +171,10 @@ int main(int argc, char **argv) {
           }
           if (n == 0) {
             printf("all data have saved\n");
-            bflag = 1; // 最後はn=0じゃないことがある。意味ないかもしれない
+            bflag = 1;  // 最後はn=0じゃないことがある。意味ないかもしれない
             break;
           } else {
-            printf("data saving, n=%d\n", n);
+            // printf("data saving, n=%d\n", n);
             write(fd, buf, n);
             rev_cnt++;
           }
@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
   printf("time; %lf\n", time);
   printf("total time is %lf ms\n", time * 1e3);
   // printf("throughput is %lf Mbps\n", (double)rev_cnt*BUF_LEN*8/time/1e6);
-  printf("throughput is %lf Mbps\n", 8 / time);
+  printf("throughput is %lf Mbps\n", 104.8576 * 8 / time);
 
   close(sock);
 

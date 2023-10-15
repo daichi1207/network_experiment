@@ -9,7 +9,7 @@
 #include "icslab2_net.h"
 // adjust this for buffer overflow
 #define MAX_EVENTS 5
-#define SLEEPTIME 1
+#define SLEEPTIME 270
 
 int main(int argc, char **argv) {
   int sock;                      /* ソケットディスクリプタ */
