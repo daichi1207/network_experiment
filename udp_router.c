@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
         struct in_addr forward_addr = get_forwarding_address(
             from_addr.sin_addr);  // routing_table.cから取得した、転送先アドレス
         if (forward_addr.s_addr != INADDR_NONE) {
-          printf("data received from %s\n", inet_ntoa(from_addr.sin_addr));
+          // printf("data received from %s\n", inet_ntoa(from_addr.sin_addr));
           send_addr.sin_family = AF_INET;
           send_addr.sin_port = htons(3000);
           send_addr.sin_addr = forward_addr;
