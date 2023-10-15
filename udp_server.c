@@ -9,7 +9,7 @@
 #include "icslab2_net.h"
 // adjust this for buffer overflow
 #define MAX_EVENTS 5
-#define SLEEPTIME 1000
+#define SLEEPTIME 1
 
 int main(int argc, char **argv) {
   int sock;                      /* ソケットディスクリプタ */
@@ -68,6 +68,15 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  /* STEP 5: 受信データをクライアントに送り返す */
+  nfds = epoll_wait(epfd, events, MAX_EVENTS, 3000);
+  if (nfds < 0) {
+    perror("epoll_wait");
+    return 1;
+  }
+  printf("got epoll\n");
+  printf("%d\n", nfds);
+
   for (;;) { /* 無限ループ */
     /* STEP 4: クライアントからのデータグラムを受けとる */
     printf("waiting connection...\n");
@@ -90,30 +99,21 @@ int main(int argc, char **argv) {
       perror("open");
       return 1;
     }
-    /* STEP 5: 受信データをクライアントに送り返す */
-
-    nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
-    if (nfds < 0) {
-      perror("epoll_wait");
-      return 1;
-    }
-    printf("got epoll\n");
-    printf("%d\n", nfds);
     // if (nfds == 0) {
     //     printf("timeout\n");
     //     continue;
     // }
 
-    for (int i = 0; i < nfds; i++) {
-      if (events[i].data.fd == sock) {
-        addrLen = sizeof(clientAddr);
-        n = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
-                     (socklen_t *)&addrLen);
-        if (n < 0) {
-          perror("recvfrom");
-        }
-      }
-    }
+    // for (int i = 0; i < nfds; i++) {
+    //   if (events[i].data.fd == sock) {
+    //     addrLen = sizeof(clientAddr);
+    //     n = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
+    //                  (socklen_t *)&addrLen);
+    //     if (n < 0) {
+    //       perror("recvfrom");
+    //     }
+    //   }
+    // }
 
     printf("start sending\n");
     while ((n = read(fd, buf, BUF_LEN)) > 0) {
