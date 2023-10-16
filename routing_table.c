@@ -50,6 +50,8 @@ void init_routing_table(void) {
 struct in_addr get_forwarding_address(const struct in_addr src) {
   for (int i = 0; i < sizeof(routing_table) / sizeof(RouteEntry); i++) {
     if (memcmp(&src, &routing_table[i].src, sizeof(struct in_addr)) == 0) {
+      // printf("get_forwarding_address: %s\n",
+      // inet_ntoa(routing_table[i].dest));
       return routing_table[i].dest;
     }
   }

@@ -9,14 +9,15 @@
 #include "icslab2_net.h"
 // adjust this for buffer overflow
 #define MAX_EVENTS 5
-#define SLEEPTIME 270
+#define SLEEPTIME 150
 
 #define node2_from3 "172.24.0.20"
 
 int main(int argc, char **argv) {
   int sock;                      /* ソケットディスクリプタ */
+  int sock2;                     /* ソケットディスクリプタ */
   struct sockaddr_in serverAddr; /* サーバ＝自分用アドレス構造体 */
-  // struct sockaddr_in serverAddr2; /* サーバ＝自分用アドレス構造体 */
+  struct sockaddr_in serverAddr2; /* サーバ＝自分用アドレス構造体 */
   struct sockaddr_in clientAddr; /* クライアント＝相手用アドレス構造体 */
   struct sockaddr_in sub_clientAddr; /* サブ経路のipアドレス */
   const char *sub_router_ipAddr_str = node2_from3;  // sub routerのipアドレス
@@ -62,9 +63,15 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  /* STEP 1: UDPソケットをオープンする */
+  if ((sock2 = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    perror("socket");
+    return 1;
+  }
+
   memset(&sub_clientAddr, 0, sizeof(sub_clientAddr)); /* 0クリア */
   sub_clientAddr.sin_family = AF_INET;   /* Internetプロトコル */
-  sub_clientAddr.sin_port = htons(3000); /* 待ち受けるポート */
+  sub_clientAddr.sin_port = htons(3001); /* 待ち受けるポート */
   sub_clientAddr.sin_addr.s_addr = htonl(INADDR_ANY); /* どのIPアドレス宛でも */
   inet_pton(AF_INET, sub_router_ipAddr_str,
             &sub_clientAddr.sin_addr.s_addr);  // subrouterのipアドレスを設定
@@ -151,38 +158,43 @@ int main(int argc, char **argv) {
     int sendcomplete_flag_1 = 0;
     int sendcomplete_flag_2 = 0;
     while (1) {
-      if (!sendcomplete_flag_1 && (n = read(fd_part1, buf, BUF_LEN)) > 0) {
-        if (sendto(sock, buf, n, 0, (struct sockaddr *)&clientAddr, addrLen) !=
-            n) {
-          perror("sendto");
-          break;
+      if (!sendcomplete_flag_1) {
+        if ((n = read(fd_part1, buf, BUF_LEN)) > 0) {
+          if (sendto(sock, buf, n, 0, (struct sockaddr *)&clientAddr,
+                     addrLen) != n) {
+            perror("sendto");
+            break;
+          }
+          usleep(SLEEPTIME);
+        } else {
+          printf("part1 send complete\n");
+          sendcomplete_flag_1 = 1;
         }
-      } else {
-        printf("part1 sent\n");
-        sendcomplete_flag_1 = 1;
       }
-      if (!sendcomplete_flag_2 && (n = read(fd_part2, buf, BUF_LEN)) > 0) {
-        if (sendto(sock, buf, n, 0, (struct sockaddr *)&sub_clientAddr,
-                   addrLen) != n) {
-          perror("sendto");
-          break;
+      if (!sendcomplete_flag_2) {
+        if ((n = read(fd_part2, buf, BUF_LEN)) > 0) {
+          if (sendto(sock2, buf, n, 0, (struct sockaddr *)&sub_clientAddr,
+                     addrLen) != n) {
+            perror("sendto");
+            break;
+          }
+          usleep(SLEEPTIME);
+        } else {
+          printf("part2 send complete\n");
+          sendcomplete_flag_2 = 1;
         }
-      } else {
-        printf("part2 sent\n");
-        sendcomplete_flag_2 = 1;
       }
       if (sendcomplete_flag_1 && sendcomplete_flag_2) break;
-      usleep(SLEEPTIME);
     }
 
     // send eof
     printf("sent eof\n");
     sendto(sock, buf, 0, 0, (struct sockaddr *)&clientAddr, addrLen);
-    sendto(sock, buf, 0, 0, (struct sockaddr *)&sub_clientAddr, addrLen);
+    sendto(sock2, buf, 0, 0, (struct sockaddr *)&sub_clientAddr, addrLen);
   }
 
-  close(sock); /* ソケットのクローズ */
-
+  close(sock);  /* ソケットのクローズ */
+  close(sock2); /* ソケットのクローズ */
   return 0;
 }
 /*--------------------------- <end> --------------------------------*/

@@ -23,16 +23,21 @@ int main(int argc, char **argv) {
   char *server_ipaddr_str = "127.0.0.1"; /* サーバIPアドレス（文字列） */
   unsigned int port = 3000;              /* ポート番号（文字列） */
   char *filename = NULL;
-  int fd = 1;
+  int fd = 0;
+  int fd_part1 = 0;
+  int fd_part2 = 0;
 
-  int sock;                      /* ソケットディスクリプタ */
-  struct sockaddr_in serverAddr; /* サーバ＝相手用のアドレス構造体 */
+  int sock1, sock2;               /* ソケットディスクリプタ */
+  struct sockaddr_in serverAddr1; /* サーバ＝相手用のアドレス構造体 */
+  struct sockaddr_in serverAddr2; /* サーバ＝相手用のアドレス構造体 */
   struct sockaddr_in clientAddr; /* クライアント＝自分用のアドレス構造体 */
-  int addrLen;                   /* serverAddrのサイズ */
-  char buf[BUF_LEN]; /* 受信バッファ */
-  int n;             /* 読み込み／受信バイト数 */
+  struct sockaddr_in sub_clientAddr; /* サブ経路のipアドレス */
+  int addrLen;                       /* serverAddrのサイズ */
+  char buf[BUF_LEN];                 /* 受信バッファ */
+  int n;                             /* 読み込み／受信バイト数 */
 
-  struct in_addr addr; /* アドレス表示用 */
+  struct in_addr addr1; /* アドレス表示用 */
+  struct in_addr addr2; /* アドレス表示用 */
 
   int epfd; /* epollインスタンスのファイルデスクリプタ */
   struct epoll_event ev, events[NEVENTS]; /* イベントとイベントの配列 */
@@ -69,25 +74,48 @@ int main(int argc, char **argv) {
       perror("open");
       return 1;
     }
+    fd_part1 = open("part1_out.dat", O_WRONLY | O_CREAT, 0644);
+    if (fd_part1 < 0) {
+      perror("open");
+      return 1;
+    }
+    fd_part2 = open("part2_out.dat", O_WRONLY | O_CREAT, 0644);
+    if (fd_part2 < 0) {
+      perror("open");
+      return 1;
+    }
   }
 
   /* STEP 1: 宛先サーバのIPアドレスとポートを指定する */
-  memset(&serverAddr, 0, sizeof(serverAddr)); /* 0クリア */
-  serverAddr.sin_family = AF_INET;            /* Internetプロトコル */
-  serverAddr.sin_port = htons(3000);          /* サーバの待受ポート */
-  serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  memset(&serverAddr1, 0, sizeof(serverAddr1)); /* 0クリア */
+  serverAddr1.sin_family = AF_INET;             /* Internetプロトコル */
+  serverAddr1.sin_port = htons(3000); /* サーバの待受ポート */
+  serverAddr1.sin_addr.s_addr = htonl(INADDR_ANY);
+  memset(&serverAddr2, 0, sizeof(serverAddr2)); /* 0クリア */
+  serverAddr2.sin_family = AF_INET;             /* Internetプロトコル */
+  serverAddr2.sin_port = htons(3001); /* サーバの待受ポート */
+  serverAddr2.sin_addr.s_addr = htonl(INADDR_ANY);
 
   /* IPアドレス（文字列）から変換 */
-  inet_pton(AF_INET, server_ipaddr_str, &serverAddr.sin_addr.s_addr);
+  inet_pton(AF_INET, server_ipaddr_str, &serverAddr1.sin_addr.s_addr);
+  inet_pton(AF_INET, server_ipaddr_str, &serverAddr2.sin_addr.s_addr);
 
   /* 確認用：IPアドレスを文字列に変換して表示 */
-  addr.s_addr = serverAddr.sin_addr.s_addr;
-  printf("ip address: %s\n", inet_ntoa(addr));
-  printf("port#: %d\n", ntohs(serverAddr.sin_port));
+  addr1.s_addr = serverAddr1.sin_addr.s_addr;
+  printf("ip address: %s\n", inet_ntoa(addr1));
+  printf("port#: %d\n", ntohs(serverAddr1.sin_port));
+  addr2.s_addr = serverAddr2.sin_addr.s_addr;
+  printf("ip address: %s\n", inet_ntoa(addr2));
+  printf("port#: %d\n", ntohs(serverAddr2.sin_port));
 
   /* STEP 2: UDPソケットをオープンする */
-  sock = socket(AF_INET, SOCK_DGRAM, 0);
-  if (sock < 0) {
+  sock1 = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock1 < 0) {
+    perror("socket");
+    return 1;
+  }
+  sock2 = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock2 < 0) {
     perror("socket");
     return 1;
   }
@@ -98,7 +126,17 @@ int main(int argc, char **argv) {
   clientAddr.sin_port = htons(3000);          /* 待ち受けるポート */
   clientAddr.sin_addr.s_addr = htonl(INADDR_ANY); /* どのIPアドレス宛でも */
   /* STEP 3:ソケットとアドレスをbindする */
-  if (bind(sock, (struct sockaddr *)&clientAddr, sizeof(clientAddr)) < 0) {
+  if (bind(sock1, (struct sockaddr *)&clientAddr, sizeof(clientAddr)) < 0) {
+    perror("bind");
+    return 1;
+  }
+  memset(&sub_clientAddr, 0, sizeof(sub_clientAddr)); /* ゼロクリア */
+  sub_clientAddr.sin_family = AF_INET;   /* Internetプロトコル */
+  sub_clientAddr.sin_port = htons(3001); /* 待ち受けるポート */
+  sub_clientAddr.sin_addr.s_addr = htonl(INADDR_ANY); /* どのIPアドレス宛でも */
+  /* STEP 3:ソケットとアドレスをbindする */
+  if (bind(sock2, (struct sockaddr *)&sub_clientAddr, sizeof(sub_clientAddr)) <
+      0) {
     perror("bind");
     return 1;
   }
@@ -115,19 +153,37 @@ int main(int argc, char **argv) {
   /* sockを登録 */
   memset(&ev, 0, sizeof(ev));
   ev.events = EPOLLIN;
-  ev.data.fd = sock;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sock, &ev) != 0) {
+  ev.data.fd = sock1;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sock1, &ev) != 0) {
     perror("epoll_ctl 1");
     return 1;
   }
+  ev.data.fd = sock2;
+  if (epoll_ctl(epfd, EPOLL_CTL_ADD, sock2, &ev) != 0) {
+    perror("epoll_ctl 1");
+    return 1;
+  }
+  // if (epoll_ctl_add_in(epfd, fd_part1) != 0) {
+  //   perror("epoll_ctl 1");
+  //   return 1;
+  // }
+  // if (epoll_ctl_add_in(epfd, fd_part2) != 0) {
+  //   perror("epoll_ctl 1");
+  //   return 1;
+  // }
 
   /*ダミーのファイル要求メッセージ*/
   //   sprintf(buf, "GET %s\r\n", dummy_file);
+  if (rev_cnt == 0) {
+    printf("clock start");
+    clock_gettime(CLOCK_REALTIME, &start);
+  }
   sprintf(buf, "GET %s\r\n", "dummy1");
-  sendto(sock, buf, strlen(buf), 0, (struct sockaddr *)&serverAddr,
-         sizeof(serverAddr));
+  sendto(sock1, buf, strlen(buf), 0, (struct sockaddr *)&serverAddr1,
+         sizeof(serverAddr1));
+  // sendto(sock2, buf, strlen(buf), 0, (struct sockaddr *)&serverAddr2,
+  //        sizeof(serverAddr2));
   printf("Send %ld bytes data: %s", strlen(buf), buf);
-
   while (1) {
     /* STEP 5: イベント発生をを待つ */
     /* 最後の引数はtimeout (msec単位), -1はtimeoutなし = ブロック */
@@ -155,29 +211,42 @@ int main(int argc, char **argv) {
     } else {  // socketのepollが立った場合
       /* STEP 6: events[]を順次確認して必要な処理を行う */
       for (i = 0; i < nfds; i++) {
-        if (events[i].data.fd == sock) {
+        // int current_sock = events[i].data.fd;
+        addrLen = sizeof(clientAddr);
+        // n = recvfrom(sock1, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
+        //              (socklen_t *)&addrLen);
+        if (n < 0) {
+          perror("recvfrom");
+        }
+        if (events[i].data.fd == sock2) {
+          // printf("data received from sock2\n");
+          n = recvfrom(sock2, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
+                       (socklen_t *)&addrLen);
+          write(fd_part2, buf, n);
+
+          // if (n1 < 0) {
+          //   perror("recvfrom");
+          // }
+          // if (n1 == 0) {
+          //   printf("all data have saved\n");
+          //   bflag = 1;  // 最後はn=0じゃないことがある。意味ないかもしれない
+          //   break;
+          // } else {
+          //   // printf("data saving, n=%d\n", n);
+          //   write(fd, buf, n1);
+          //   write(fd, buf, n2);
+          //   rev_cnt++;
+          // }
+        }
+        if (events[i].data.fd == sock1) {
           /* STEP 8: sockに関するイベントなら */
           /* サーバからデータグラムを受けとる */
           sock_begin_flag = 1;
-          if (rev_cnt == 0) {
-            printf("clock start");
-            clock_gettime(CLOCK_REALTIME, &start);
-          }
-          addrLen = sizeof(clientAddr);
-          n = recvfrom(sock, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
+          // printf("data received from sock1\n");
+          // addrLen = sizeof(clientAddr);
+          n = recvfrom(sock1, buf, BUF_LEN, 0, (struct sockaddr *)&clientAddr,
                        (socklen_t *)&addrLen);
-          if (n < 0) {
-            perror("recvfrom");
-          }
-          if (n == 0) {
-            printf("all data have saved\n");
-            bflag = 1;  // 最後はn=0じゃないことがある。意味ないかもしれない
-            break;
-          } else {
-            // printf("data saving, n=%d\n", n);
-            write(fd, buf, n);
-            rev_cnt++;
-          }
+          write(fd_part1, buf, n);
         }
       }
     }
@@ -194,7 +263,8 @@ int main(int argc, char **argv) {
   // printf("throughput is %lf Mbps\n", (double)rev_cnt*BUF_LEN*8/time/1e6);
   printf("throughput is %lf Mbps\n", 104.8576 * 8 / time);
 
-  close(sock);
+  close(sock1);
+  close(sock2);
 
   return 0;
 }
