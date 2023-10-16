@@ -37,25 +37,29 @@ int main(int argc, char *argv[]) {
   ev.data.fd = recv_sock;
   epoll_ctl(epfd, EPOLL_CTL_ADD, recv_sock, &ev);
 
+  int packet_num = 0;
   while (1) {
     nfds = epoll_wait(epfd, events, MAX_EVENTS, 3000);
     if (nfds == 0) {
       continue;
     }
     // printf("data received\n");
-
     for (int i = 0; i < nfds; i++) {
       if (events[i].data.fd == recv_sock) {
         int str_len = recvfrom(recv_sock, buf, BUF_SIZE, 0,
                                (struct sockaddr *)&from_addr, &addr_len);
-        if (str_len == 0) { // 0byteの終端パケットの場合
+        struct in_addr forward_addr = get_forwarding_address(
+            from_addr.sin_addr);  // routing_table.cから取得した、転送先アドレス
+        if (str_len == 0) {  // 0byteの終端パケットの場合
           printf("receive end packet\n");
+          packet_num = 0;
+          sendto(recv_sock, buf, str_len, 0, (struct sockaddr *)&send_addr,
+                 sizeof(send_addr));
           break;
         }
-        struct in_addr forward_addr = get_forwarding_address(
-            from_addr.sin_addr); // routing_table.cから取得した、転送先アドレス
         if (forward_addr.s_addr != INADDR_NONE) {
-          // printf("data received from %s\n", inet_ntoa(from_addr.sin_addr));
+          printf("(%d): sending :: data from %s\n", packet_num++,
+                 inet_ntoa(from_addr.sin_addr));
           send_addr.sin_family = AF_INET;
           send_addr.sin_port = htons(3000);
           send_addr.sin_addr = forward_addr;

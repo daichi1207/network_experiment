@@ -3,7 +3,7 @@
 #ifndef ROUTING_TABLE_H
 #define ROUTING_TABLE_H
 
-#include <netinet/in.h> // for struct in_addr
+#include <netinet/in.h>  // for struct in_addr
 
 typedef struct {
   struct in_addr src;
@@ -14,4 +14,4 @@ void init_routing_table(void);
 
 struct in_addr get_forwarding_address(const struct in_addr src);
 
-#endif // ROUTING_TABLE_H
+#endif  // ROUTING_TABLE_H
