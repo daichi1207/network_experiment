@@ -157,7 +157,6 @@ int main(int argc, char **argv) {
           perror("sendto");
           break;
         }
-        usleep(SLEEPTIME);
       } else {
         printf("part1 sent\n");
         sendcomplete_flag_1 = 1;
@@ -168,13 +167,12 @@ int main(int argc, char **argv) {
           perror("sendto");
           break;
         }
-        usleep(SLEEPTIME);
       } else {
         printf("part2 sent\n");
         sendcomplete_flag_2 = 1;
       }
-
       if (sendcomplete_flag_1 && sendcomplete_flag_2) break;
+      usleep(SLEEPTIME);
     }
 
     // send eof

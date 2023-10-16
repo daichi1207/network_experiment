@@ -48,13 +48,15 @@ int main(int argc, char *argv[]) {
       if (events[i].data.fd == recv_sock) {
         int str_len = recvfrom(recv_sock, buf, BUF_SIZE, 0,
                                (struct sockaddr *)&from_addr, &addr_len);
+        struct in_addr forward_addr = get_forwarding_address(
+            from_addr.sin_addr);  // routing_table.cから取得した、転送先アドレス
         if (str_len == 0) {  // 0byteの終端パケットの場合
           printf("receive end packet\n");
           packet_num = 0;
+          sendto(recv_sock, buf, str_len, 0, (struct sockaddr *)&send_addr,
+                 sizeof(send_addr));
           break;
         }
-        struct in_addr forward_addr = get_forwarding_address(
-            from_addr.sin_addr);  // routing_table.cから取得した、転送先アドレス
         if (forward_addr.s_addr != INADDR_NONE) {
           printf("(%d): sending :: data from %s\n", packet_num++,
                  inet_ntoa(from_addr.sin_addr));
