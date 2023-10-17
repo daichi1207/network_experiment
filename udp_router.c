@@ -1,9 +1,9 @@
 #include "icslab2_net.h"
 #include "routing_table.h"
 
-#define BUF_SIZE 1024
+#define BUF_SIZE 1000
 #define MAX_EVENTS 5
-#define SLEEPTIME 450
+#define SLEEPTIME 45
 
 int main(int argc, char *argv[]) {
   int recv_sock;

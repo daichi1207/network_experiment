@@ -9,7 +9,7 @@
 #include "icslab2_net.h"
 // adjust this for buffer overflow
 #define MAX_EVENTS 5
-#define SLEEPTIME 150
+#define SLEEPTIME 100
 
 #define node2_from3 "172.24.0.20"
 

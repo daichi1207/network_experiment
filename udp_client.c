@@ -260,7 +260,7 @@ int main(int argc, char **argv) {
   time = (double)sec + (double)nsec * 1e-9;
   printf("time; %lf\n", time);
   printf("total time is %lf ms\n", time * 1e3);
-  // printf("throughput is %lf Mbps\n", (double)rev_cnt*BUF_LEN*8/time/1e6);
+  printf("throughput is %lf Mbps\n", (double)rev_cnt*BUF_LEN*8/time/1e6);
   printf("throughput is %lf Mbps\n", 104.8576 * 8 / time);
 
   close(sock1);

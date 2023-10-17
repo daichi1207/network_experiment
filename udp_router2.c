@@ -1,9 +1,9 @@
 #include "icslab2_net.h"
 #include "routing_table.h"
 
-#define BUF_SIZE 1024
+#define BUF_SIZE 1000
 #define MAX_EVENTS 5
-#define SLEEPTIME 0
+#define SLEEPTIME 45
 
 int main(int argc, char *argv[]) {
   int recv_sock;
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
           sum_sent_bytes +=
               sendto(recv_sock, buf, str_len, 0, (struct sockaddr *)&send_addr,
                      sizeof(send_addr));
-          //   usleep(SLEEPTIME);
+             usleep(SLEEPTIME);
         } else {
           printf("dest address not found\n");
           break;
