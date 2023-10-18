@@ -20,10 +20,10 @@ int main(int argc, char **argv) {
   struct sockaddr_in serverAddr2; /* サーバ＝自分用アドレス構造体 */
   struct sockaddr_in clientAddr; /* クライアント＝相手用アドレス構造体 */
   struct sockaddr_in sub_clientAddr; /* サブ経路のipアドレス */
-  const char *sub_router_ipAddr_str = node2_from3;  // sub routerのipアドレス
-  int addrLen;                                      /* clientAddrのサイズ */
-  char buf[BUF_LEN];                                /* 受信バッファ */
-  int n;                                            /* 受信バイト数 */
+  const char *sub_router_ipAddr_str = node2_from3; // sub routerのipアドレス
+  int addrLen;                                     /* clientAddrのサイズ */
+  char buf[BUF_LEN];                               /* 受信バッファ */
+  int n;                                           /* 受信バイト数 */
   char *filename;
   char *filename_part1 = "part1.dat";
   char *filename_part2 = "part2.dat";
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 
   filename = argv[1];
   printf("filename: %s\n", filename);
-  file_divide(filename);  // subファイルの作成
+  file_divide(filename); // subファイルの作成
 
   /* STEP 1: UDPソケットをオープンする */
   if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
   sub_clientAddr.sin_port = htons(3001); /* 待ち受けるポート */
   sub_clientAddr.sin_addr.s_addr = htonl(INADDR_ANY); /* どのIPアドレス宛でも */
   inet_pton(AF_INET, sub_router_ipAddr_str,
-            &sub_clientAddr.sin_addr.s_addr);  // subrouterのipアドレスを設定
+            &sub_clientAddr.sin_addr.s_addr); // subrouterのipアドレスを設定
 
   // memset(&serverAddr2, 0, sizeof(serverAddr2)); /* ゼロクリア */
   // serverAddr2.sin_family = AF_INET;             /* Internetプロトコル */
@@ -184,7 +184,8 @@ int main(int argc, char **argv) {
           sendcomplete_flag_2 = 1;
         }
       }
-      if (sendcomplete_flag_1 && sendcomplete_flag_2) break;
+      if (sendcomplete_flag_1 && sendcomplete_flag_2)
+        break;
     }
 
     // send eof
@@ -212,9 +213,9 @@ int file_divide(char *filename) {
     return 1;
   }
 
-  fseek(file, 0, SEEK_END);      // ファイルの末尾に移動
-  long file_size = ftell(file);  // ファイルサイズを取得
-  rewind(file);                  // ファイルポインタを先頭に戻す
+  fseek(file, 0, SEEK_END);     // ファイルの末尾に移動
+  long file_size = ftell(file); // ファイルサイズを取得
+  rewind(file);                 // ファイルポインタを先頭に戻す
 
   // ファイルサイズが奇数の場合、分割が均等にならないので注意が必要
 
